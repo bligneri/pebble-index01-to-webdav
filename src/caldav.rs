@@ -14,16 +14,29 @@ pub struct Dav {
 }
 
 impl Dav {
-    pub fn new(cfg: &Config, password: &str) -> Self {
-        let http = reqwest::Client::builder().timeout(Duration::from_secs(30)).build().expect("TLS backend");
-        Self { http, base: cfg.caldav.base_url.clone(), user: cfg.caldav.user.clone(), password: password.into() }
+    pub fn new(cfg: &Config, user: &str, password: &str) -> Self {
+        let http = reqwest::Client::builder()
+            .timeout(Duration::from_secs(30))
+            .build()
+            .expect("TLS backend");
+        Self {
+            http,
+            base: cfg.caldav.base_url.clone(),
+            user: user.into(),
+            password: password.into(),
+        }
     }
 
     fn url(&self, collection: &str, uid: &str) -> String {
         format!("{}{collection}/{uid}.ics", self.base)
     }
 
-    async fn put(&self, url: &str, ics: String, condition: (header::HeaderName, &str)) -> Result<StatusCode, String> {
+    async fn put(
+        &self,
+        url: &str,
+        ics: String,
+        condition: (header::HeaderName, &str),
+    ) -> Result<StatusCode, String> {
         let res = self
             .http
             .put(url)
@@ -39,7 +52,14 @@ impl Dav {
 
     /// New note or todo. An existing UID (same delivery seen again) counts as stored.
     pub async fn create(&self, collection: &str, uid: &str, ics: String) -> Result<(), String> {
-        match self.put(&self.url(collection, uid), ics, (header::IF_NONE_MATCH, "*")).await? {
+        match self
+            .put(
+                &self.url(collection, uid),
+                ics,
+                (header::IF_NONE_MATCH, "*"),
+            )
+            .await?
+        {
             s if s.is_success() || s == StatusCode::PRECONDITION_FAILED => Ok(()),
             s => Err(format!("PUT {s}")),
         }
@@ -70,7 +90,11 @@ impl Dav {
                     self.put(&url, ics, (header::IF_NONE_MATCH, "*")).await?
                 }
                 s if s.is_success() => {
-                    let etag = res.headers().get(header::ETAG).and_then(|v| v.to_str().ok()).map(str::to_owned);
+                    let etag = res
+                        .headers()
+                        .get(header::ETAG)
+                        .and_then(|v| v.to_str().ok())
+                        .map(str::to_owned);
                     let etag = etag.ok_or("GET returned no ETag")?;
                     let ics = ics::append(&res.text().await.map_err(|e| e.to_string())?, now, line);
                     self.put(&url, ics, (header::IF_MATCH, &etag)).await?

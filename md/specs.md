@@ -32,7 +32,9 @@ Source : sdk-docs source/index-01/webhooks.md (PR #26, fusionnée).
 • Fenêtre d'horodatage : 5 minutes.
 • Anti-rejeu : IDs de livraison gardés en mémoire jusqu'à max(timestamp, réception) + 5 min ; doublon → 409 sans écriture. Limite : perdu au redémarrage (1 réplique).
 • Événement de test : signature vérifiée, 200 sans rien écrire.
-• Réponses : 200 succès, 400 corps invalide, 401 signature ou horodatage invalide, 409 doublon, 502 si CalDAV échoue.
+• Réponses : 200 succès, 400 corps invalide, 401 signature ou horodatage invalide, 409 doublon, 502 si CalDAV échoue, 503 si CALDAV_APP_PASSWORD absent.
+• Logs : une ligne par requête (déclencheur, ID de livraison, statut, raison), INFO si succès, WARN sinon.
+• UID des notes et tâches : pebble-<ID de livraison>, une relivraison retombe sur la même ressource (412 = déjà écrit).
 • L'appli ne réessaie pas ; l'échec est visible dans « Recent runs » (statut + 200 premiers caractères de la réponse). Délai max 2 min.
 • Vecteur de test : l'exemple « Worked Example » de la doc sert de test unitaire de la vérification.
 
@@ -115,6 +117,7 @@ Fichier YAML (ConfigMap en Kubernetes), chemin dans CONFIG_PATH (défaut /config
 Secrets en variables d'environnement (Secret Kubernetes ou --env-file) :
 • PEBBLE_WEBHOOK_SECRET
 • CALDAV_APP_PASSWORD
+• CALDAV_USER (facultatif, remplace caldav.user)
 
 Gestion des secrets (Makefile)
 • make key : affiche un secret aléatoire (openssl rand), pour tout le monde.

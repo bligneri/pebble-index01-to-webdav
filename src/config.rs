@@ -19,7 +19,9 @@ pub struct Config {
 #[serde(deny_unknown_fields)]
 pub struct Caldav {
     pub base_url: String,
-    pub user: String,
+    // CALDAV_USER, when set, takes precedence
+    #[serde(default)]
+    pub user: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -54,6 +56,7 @@ pub struct Secrets {
     pub webhook: String,
     // optional until CalDAV writes are wired in (plan step 6)
     pub caldav_password: Option<String>,
+    pub caldav_user: Option<String>,
 }
 
 impl Config {
@@ -85,6 +88,7 @@ impl Secrets {
         Ok(Self {
             webhook: get("PEBBLE_WEBHOOK_SECRET")?,
             caldav_password: get("CALDAV_APP_PASSWORD").ok(),
+            caldav_user: get("CALDAV_USER").ok(),
         })
     }
 }

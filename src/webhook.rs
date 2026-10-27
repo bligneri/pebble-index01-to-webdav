@@ -10,7 +10,10 @@ use chrono::{DateTime, Utc};
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
-use crate::classify::classify;
+use crate::{
+    classify::{Kind, classify},
+    ics,
+};
 
 /// Accepted clock difference and how long delivery IDs are remembered, in seconds.
 const WINDOW: i64 = 300;
@@ -40,24 +43,38 @@ pub async fn hook(
     h: HeaderMap,
     body: Bytes,
 ) -> (StatusCode, &'static str) {
+    let header = |k: &str| {
+        h.get(k)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("-")
+            .to_owned()
+    };
+    let (trigger, delivery) = (header("x-index-trigger"), header("x-index-delivery"));
+    let (status, reason) = handle(&st, &h, body).await;
+    if status.is_success() {
+        tracing::info!(%trigger, %delivery, status = status.as_u16(), reason, "request");
+    } else {
+        tracing::warn!(%trigger, %delivery, status = status.as_u16(), reason, "request");
+    }
+    (status, reason)
+}
+
+async fn handle(st: &crate::State, h: &HeaderMap, body: Bytes) -> (StatusCode, &'static str) {
     let now = Utc::now();
-    let test = match verify(
+    let (test, delivery) = match verify(
         st.secrets.webhook.as_bytes(),
-        &h,
+        h,
         &body,
         now.timestamp(),
         &st.seen,
     ) {
-        Ok(test) => test,
-        Err(reject) => {
-            tracing::warn!(reason = reject.1, "rejected");
-            return reject;
-        }
+        Ok(v) => v,
+        Err(reject) => return reject,
     };
     if test {
         return (StatusCode::OK, "test event ok");
     }
-    let (text, recorded_ms) = match fields(&h, body).await {
+    let (text, recorded_ms) = match fields(h, body).await {
         Ok(f) => f,
         Err(reject) => return reject,
     };
@@ -71,21 +88,51 @@ pub async fn hook(
     }
     let collection = &st.cfg.domains[c.domain].collection;
     tracing::info!(kind = ?c.kind, domain = c.domain, collection, %recorded, "classified");
-    // Plan step 6: write to CalDAV.
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        "CalDAV write not implemented yet",
-    )
+    let Some(dav) = &st.dav else {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            "CalDAV password not configured",
+        );
+    };
+
+    let written = match c.kind {
+        Kind::Journal => {
+            let day = recorded.date_naive();
+            let uid = format!("pebble-journal-{}-{day}", c.domain);
+            let line = format!("{} {}", recorded.format("%H:%M"), c.text);
+            dav.append_journal(collection, &uid, day, &line, now).await
+        }
+        kind => {
+            // The delivery ID is stable per recording: a redelivery hits the same UID instead of a duplicate.
+            let uid = format!("pebble-{}", safe_id(&delivery));
+            let ics = ics::note_or_todo(kind == Kind::Todo, &uid, now, c.text);
+            dav.create(collection, &uid, ics).await
+        }
+    };
+    match written {
+        Ok(()) => (StatusCode::OK, "stored"),
+        Err(e) => {
+            tracing::error!(error = e, collection, "CalDAV write failed");
+            (StatusCode::BAD_GATEWAY, "CalDAV write failed")
+        }
+    }
 }
 
-/// Checks version, signature, timestamp window and replay. Returns whether it is a test event.
+/// Delivery ID reduced to characters safe in a CalDAV resource name.
+fn safe_id(id: &str) -> String {
+    id.chars()
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '-')
+        .collect()
+}
+
+/// Checks version, signature, timestamp window and replay. Returns whether it is a test event, and the delivery ID.
 pub fn verify(
     secret: &[u8],
     h: &HeaderMap,
     body: &[u8],
     now: i64,
     seen: &Seen,
-) -> Result<bool, Reject> {
+) -> Result<(bool, String), Reject> {
     let get = |k: &str| h.get(k).and_then(|v| v.to_str().ok());
     if get("x-index-webhook-version") != Some("1") {
         return Err((StatusCode::BAD_REQUEST, "unsupported webhook version"));
@@ -122,7 +169,7 @@ pub fn verify(
     if !seen.first(delivery, ts, now) {
         return Err((StatusCode::CONFLICT, "duplicate delivery"));
     }
-    Ok(test)
+    Ok((test, delivery.to_string()))
 }
 
 /// Transcription and recordedAt (Unix ms) from the multipart body; audio is ignored.
@@ -207,7 +254,7 @@ mod tests {
         h
     }
 
-    fn code(r: Result<bool, Reject>) -> StatusCode {
+    fn code(r: Result<(bool, String), Reject>) -> StatusCode {
         r.map_or_else(|e| e.0, |_| StatusCode::OK)
     }
 
@@ -222,7 +269,7 @@ mod tests {
         );
         assert_eq!(
             verify(SECRET, &headers(), body.as_bytes(), TS, &Seen::default()),
-            Ok(true)
+            Ok((true, "6f1c2a3e-8b4d-4c5e-9f60-1a2b3c4d5e6f".to_string()))
         );
     }
 
@@ -262,6 +309,15 @@ mod tests {
             code(verify(SECRET, &old, body.as_bytes(), TS, &seen)),
             StatusCode::BAD_REQUEST
         );
+    }
+
+    #[test]
+    fn safe_id_keeps_uuid_drops_path_chars() {
+        assert_eq!(
+            safe_id("6f1c2a3e-8b4d-4c5e-9f60-1a2b3c4d5e6f"),
+            "6f1c2a3e-8b4d-4c5e-9f60-1a2b3c4d5e6f"
+        );
+        assert_eq!(safe_id("../x?y z"), "xyz");
     }
 
     #[test]

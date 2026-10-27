@@ -1,11 +1,12 @@
+mod caldav;
 mod classify;
 mod config;
-#[allow(dead_code)] // wired into the webhook handler (plan step 6)
 mod ics;
 mod webhook;
 
 use std::sync::Arc;
 
+use anyhow::Context;
 use axum::{
     Router,
     routing::{get, post},
@@ -16,16 +17,29 @@ struct State {
     cfg: Config,
     secrets: Secrets,
     seen: webhook::Seen,
+    // None until CALDAV_APP_PASSWORD is set
+    dav: Option<caldav::Dav>,
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
     let path = std::env::var("CONFIG_PATH").unwrap_or_else(|_| "/config/config.yaml".into());
+    let (cfg, secrets) = (Config::load(&path)?, Secrets::from_env()?);
+    let dav = match &secrets.caldav_password {
+        None => None,
+        Some(pw) => {
+            let user = secrets.caldav_user.as_ref().or(cfg.caldav.user.as_ref());
+            let user =
+                user.context("CALDAV_APP_PASSWORD is set but neither CALDAV_USER nor caldav.user")?;
+            Some(caldav::Dav::new(&cfg, user, pw))
+        }
+    };
     let state = Arc::new(State {
-        cfg: Config::load(&path)?,
-        secrets: Secrets::from_env()?,
+        cfg,
+        secrets,
         seen: Default::default(),
+        dav,
     });
 
     let app = Router::new()
