@@ -30,10 +30,11 @@ pub struct Journal {
     pub mode: JournalMode,
 }
 
-// ponytail: only append for now, `new` (one entry per dictation) comes later.
+/// `new`: one journal entry per dictation; `append`: one entry per day and domain, a line per dictation.
 #[derive(Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum JournalMode {
+    New,
     Append,
 }
 
@@ -102,7 +103,7 @@ mod tests {
         let cfg = Config::parse(include_str!("../config.example.yaml")).unwrap();
         assert_eq!(cfg.default_domain, "perso");
         assert_eq!(cfg.domains["esa"].keywords, ["esa", "travail"]);
-        assert_eq!(cfg.journal.mode, JournalMode::Append);
+        assert_eq!(cfg.journal.mode, JournalMode::New);
     }
 
     #[test]
@@ -111,6 +112,6 @@ mod tests {
         assert!(
             Config::parse(&yaml.replace("default_domain: perso", "default_domain: x")).is_err()
         );
-        assert!(Config::parse(&yaml.replace("mode: append", "mode: new")).is_err());
+        assert!(Config::parse(&yaml.replace("mode: new", "mode: daily")).is_err());
     }
 }

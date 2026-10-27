@@ -3,7 +3,7 @@ caldav:
   user: alice
 timezone: America/Montreal
 journal:
-  mode: append
+  mode: new   # one entry per dictation; append: one entry per day and domain
 types:
   note: [note]
   journal: [journal]

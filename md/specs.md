@@ -61,7 +61,7 @@ Journal : ajout au journal du jour
     ◦ 200 → ajout d'une ligne « HH:MM texte » à DESCRIPTION, PUT avec If-Match: <etag>.
     ◦ 412 (modifié entre-temps) → relire et réessayer (3 fois max).
 • Le jour est calculé dans le fuseau TZ à partir de l'horodatage d'enregistrement.
-• Configuration journal.mode : seule la valeur append est prise en charge pour l'instant (new = une entrée par dictée, plus tard).
+• Configuration journal.mode : new (défaut, une entrée par dictée, DTSTART à l'heure d'enregistrement, UID pebble-<ID de livraison>) ou append (une entrée par jour et par domaine).
 
 Génération iCalendar
 Note :
@@ -138,7 +138,7 @@ Déploiement
 3. Synchroniser DAVx⁵ et vérifier dans jtx Board.
 
 Évolutions possibles
-• journal.mode: new (une entrée par dictée).
+
 • Serveur MCP CalDAV pour laisser l'agent choisir le type.
 • Archivage de l'audio dans Nextcloud et lien en pièce jointe (ATTACH).
 • Dates d'échéance extraites du texte pour les tâches.

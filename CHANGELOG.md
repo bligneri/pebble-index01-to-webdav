@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-27
+
+- journal.mode new, now the default, writes one journal entry per dictation dated at its recording time instead of appending lines to one entry per day, so each dictation is its own card with its own preview in jtx Board.
+
 ## [0.2.0] - 2026-10-27
 
 - Dictations are written to CalDAV: notes and todos as new entries named after the delivery ID (a redelivery is not duplicated), journals appended to one entry per day and domain with ETag checks, so dictations land in jtx Board.

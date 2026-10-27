@@ -15,6 +15,16 @@ pub fn note_or_todo(todo: bool, uid: &str, now: DateTime<Utc>, text: &str) -> St
     calendar(component, uid, now, props)
 }
 
+/// Journal entry for one dictation, dated at its recording time.
+pub fn journal_entry(uid: &str, now: DateTime<Utc>, recorded: DateTime<Utc>, text: &str) -> String {
+    let props = vec![
+        format!("DTSTART:{}", stamp(recorded)),
+        format!("SUMMARY:{}", escape(&summary(text))),
+        format!("DESCRIPTION:{}", escape(text)),
+    ];
+    calendar("VJOURNAL", uid, now, props)
+}
+
 /// New day journal holding its first line.
 pub fn journal(uid: &str, now: DateTime<Utc>, day: NaiveDate, line: &str) -> String {
     let props = vec![
@@ -142,6 +152,14 @@ mod tests {
         let folded = fold(&long);
         assert!(folded.split("\r\n").all(|l| l.len() <= 75));
         assert_eq!(folded.replace("\r\n ", ""), long);
+    }
+
+    #[test]
+    fn journal_entry_is_dated_at_recording() {
+        let at = now() - chrono::Duration::minutes(5);
+        let e = journal_entry("j2", now(), at, "Réunion budget. Suite");
+        assert!(e.contains("BEGIN:VJOURNAL\r\n") && e.contains("DTSTART:20261005T235500Z\r\n"));
+        assert!(e.contains("SUMMARY:Réunion budget\r\n"));
     }
 
     #[test]

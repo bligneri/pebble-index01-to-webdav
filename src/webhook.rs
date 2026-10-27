@@ -12,6 +12,7 @@ use sha2::Sha256;
 
 use crate::{
     classify::{Kind, classify},
+    config::JournalMode,
     ics,
 };
 
@@ -96,6 +97,11 @@ async fn handle(st: &crate::State, h: &HeaderMap, body: Bytes) -> (StatusCode, &
     };
 
     let written = match c.kind {
+        Kind::Journal if st.cfg.journal.mode == JournalMode::New => {
+            let uid = format!("pebble-{}", safe_id(&delivery));
+            let ics = ics::journal_entry(&uid, now, recorded.to_utc(), c.text);
+            dav.create(collection, &uid, ics).await
+        }
         Kind::Journal => {
             let day = recorded.date_naive();
             let uid = format!("pebble-journal-{}-{day}", c.domain);
