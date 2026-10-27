@@ -75,8 +75,16 @@ impl Config {
 
 impl Secrets {
     pub fn from_env() -> anyhow::Result<Self> {
-        let get = |k: &str| std::env::var(k).ok().filter(|v| !v.is_empty()).with_context(|| format!("{k} is not set"));
-        Ok(Self { webhook: get("PEBBLE_WEBHOOK_SECRET")?, caldav_password: get("CALDAV_APP_PASSWORD")? })
+        let get = |k: &str| {
+            std::env::var(k)
+                .ok()
+                .filter(|v| !v.is_empty())
+                .with_context(|| format!("{k} is not set"))
+        };
+        Ok(Self {
+            webhook: get("PEBBLE_WEBHOOK_SECRET")?,
+            caldav_password: get("CALDAV_APP_PASSWORD")?,
+        })
     }
 }
 
@@ -95,7 +103,9 @@ mod tests {
     #[test]
     fn rejects_unknown_default_domain_and_mode() {
         let yaml = include_str!("../config.example.yaml");
-        assert!(Config::parse(&yaml.replace("default_domain: perso", "default_domain: x")).is_err());
+        assert!(
+            Config::parse(&yaml.replace("default_domain: perso", "default_domain: x")).is_err()
+        );
         assert!(Config::parse(&yaml.replace("mode: append", "mode: new")).is_err());
     }
 }

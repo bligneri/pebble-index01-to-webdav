@@ -7,7 +7,7 @@ ns=${NAMESPACE:-pebble}
 ask() {
   printf '%s' "$1" >&2
   stty -echo 2>/dev/null || true
-  read -r v
+  read -r v || { echo 'no input: run this in a terminal' >&2; exit 1; }
   stty echo 2>/dev/null || true
   echo >&2
   printf '%s' "$v"

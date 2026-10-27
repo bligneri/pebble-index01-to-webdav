@@ -1,0 +1,29 @@
+# Tag vX.Y.Z (matching Cargo.toml): image ghcr.io/<owner>/<repo>:X.Y.Z and :latest, static binary on the GitHub Release
+name: release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+  packages: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: make test
+      - name: Image and binary
+        run: |
+          v=${GITHUB_REF_NAME#v}
+          grep -qx "version = \"$v\"" Cargo.toml || { echo "tag $GITHUB_REF_NAME does not match Cargo.toml"; exit 1; }
+          img=ghcr.io/${GITHUB_REPOSITORY,,}
+          echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker build -t "$img:$v" -t "$img:latest" .
+          docker push "$img:$v"
+          docker push "$img:latest"
+          bin=pebble-index01-to-webdav-$v-linux-amd64
+          docker create --name out "$img:$v"
+          docker cp out:/pebble-index01-to-webdav "$bin"
+          gh release create "$GITHUB_REF_NAME" --generate-notes "$bin"

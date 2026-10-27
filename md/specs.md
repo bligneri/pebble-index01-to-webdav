@@ -46,7 +46,7 @@ Modèle
 Classification par mots-clés
 Le texte commence par un mot-clé de type, puis un mot-clé de domaine, tous deux optionnels :
   « Journal ESA, réunion avec… » · « À faire maison, changer le filtre » · « CNV, … »
-• Type : « note » → note ; « journal » → journal ; « todo », « tâche », « à faire » → tâche ; aucun → note.
+• Type : « note » → note ; « journal » → journal ; « todo », « to do », « tâche », « à faire », « afaire », « affaire » → tâche ; aucun → note.
 • Domaine : « cnv », « nvc » → cnv ; « travail », « esa » → esa ; « perso » → perso ; « maison » → maison ; aucun → perso.
 • Comparaison insensible à la casse, aux accents et à la ponctuation qui suit (« À faire, » = « a faire »).
 • Les mots-clés sont retirés du texte.
@@ -105,7 +105,7 @@ Fichier YAML (ConfigMap en Kubernetes), chemin dans CONFIG_PATH (défaut /config
   types:
     note: [note]
     journal: [journal]
-    todo: [todo, tâche, à faire]
+    todo: [todo, to do, tâche, à faire, afaire, affaire]
   default_domain: perso
   domains:
     cnv:    { collection: cnv,    keywords: [cnv, nvc] }

@@ -7,7 +7,7 @@ journal:
 types:
   note: [note]
   journal: [journal]
-  todo: [todo, tâche, à faire]
+  todo: [todo, to do, tâche, à faire, afaire, affaire]
 default_domain: perso
 domains:
   cnv:    { collection: cnv,    keywords: [cnv, nvc] }
