@@ -7,6 +7,8 @@ COPY src src
 RUN cargo build --release --locked
 
 FROM scratch
+# links the ghcr.io package to the public repo, so it is published public
+LABEL org.opencontainers.image.source=https://github.com/bligneri/pebble-index01-to-webdav
 COPY --from=build /src/target/release/pebble-index01-to-webdav /pebble-index01-to-webdav
 USER 65532:65532
 EXPOSE 8080

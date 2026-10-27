@@ -52,7 +52,8 @@ pub struct Domain {
 
 pub struct Secrets {
     pub webhook: String,
-    pub caldav_password: String,
+    // optional until CalDAV writes are wired in (plan step 6)
+    pub caldav_password: Option<String>,
 }
 
 impl Config {
@@ -83,7 +84,7 @@ impl Secrets {
         };
         Ok(Self {
             webhook: get("PEBBLE_WEBHOOK_SECRET")?,
-            caldav_password: get("CALDAV_APP_PASSWORD")?,
+            caldav_password: get("CALDAV_APP_PASSWORD").ok(),
         })
     }
 }
