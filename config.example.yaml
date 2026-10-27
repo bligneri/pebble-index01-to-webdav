@@ -1,0 +1,16 @@
+caldav:
+  base_url: https://cloud.example.com/remote.php/dav/calendars/alice/
+  user: alice
+timezone: America/Montreal
+journal:
+  mode: append
+types:
+  note: [note]
+  journal: [journal]
+  todo: [todo, tâche, à faire]
+default_domain: perso
+domains:
+  cnv:    { collection: cnv,    keywords: [cnv, nvc] }
+  esa:    { collection: esa,    keywords: [esa, travail] }
+  perso:  { collection: perso,  keywords: [perso] }
+  maison: { collection: maison, keywords: [maison] }
